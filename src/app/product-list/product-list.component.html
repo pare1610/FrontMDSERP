@@ -7,8 +7,18 @@
    }
    <ul class="pill-group">
     @for (product of products; track product.id) {
-    <li class="pill">{{product.title}}</li>
+    <li class="pill" (click)="selectedProduct=product" >{{product.title}}
+        @switch (product.title) {
+            @case ('Keyboard') { ⌨️ }
+            @case ('Microphone') { 🎙️ }
+            @default { 🏷️ }   
+        } 
+        </li>
     } @empty {
     <p>No products found!</p>
     }
    </ul>
+<!-- <p>Selected Product: {{selectedProduct?.title}}</p> -->
+<app-product-detail [product]="selectedProduct" (added)="onAdded()">
+    
+</app-product-detail>

@@ -1,0 +1,124 @@
+{
+    "ID" : 64288,
+    "SITE_ID" : "s1",
+    "NAME" : "Proyecto para La Negociacion 64288",
+    "DESCRIPTION" : "",
+    "DATE_CREATE" : "2025-05-14T01:10:12+03:00",
+    "DATE_UPDATE" : "2025-05-14T01:10:12+03:00",
+    "ACTIVE" : "Y",
+    "VISIBLE" : "Y",
+    "OPENED" : "N",
+    "CLOSED" : "N",
+    "SUBJECT_ID" : 1,
+    "OWNER_ID" : 71,
+    "KEYWORDS" : "",
+    "DATE_ACTIVITY" : "2025-05-14T01:10:12+03:00",
+    "SUBJECT_NAME" : "Grupos de trabajo",
+    "PROJECT" : "Y",
+    "IS_EXTRANET" : "N"
+}
+
+var ConnectorSQL = (function() {
+    // Configuración base (se puede sobreescribir)
+    var config = {
+      host: '186.28.243.188\\SQLFACTORY',
+      port: 63138,
+      dbName: 'nombre-db',
+      user: 'sa',
+      password: 'MDS1610solPRO',
+      instanceName: '', // Si usa instancia nombrada
+      connectionTimeout: 30
+    };
+  
+    return {
+      /**
+       * Configurar conexión
+       * @param {Object} newConfig - Nueva configuración
+       */
+      setConfig: function(newConfig) {
+        config = Object.assign(config, newConfig);
+      },
+  
+      /**
+       * Escribir resultados de consulta en Sheet
+       * @param {string} query - Consulta SQL
+       * @param {string} [spreadsheetId] - ID del Spreadsheet
+       * @param {string} [sheetName] - Nombre de la hoja
+       */
+      writeToSheet: function(query, spreadsheetId, sheetName = 'Datos') {
+        let conn, stmt, results;
+        try {
+          // Establecer conexión
+          conn = this._getConnection();
+          
+          // Ejecutar consulta
+          stmt = conn.createStatement();
+          results = stmt.executeQuery(query);
+  
+          // Procesar resultados
+          const data = this._parseResultSet(results);
+          
+          // Escribir en Sheets
+          this._writeData(data, spreadsheetId, sheetName);
+          
+          return true;
+        } catch(e) {
+          console.error('Error: ' + e.message);
+          throw e;
+        } finally {
+          // Cerrar recursos
+          if (results) results.close();
+          if (stmt) stmt.close();
+          if (conn) conn.close();
+        }
+      },
+  
+      // Métodos privados
+      _getConnection: function() {
+        const jdbcUrl = 'jdbc:sqlserver://' + config.host +
+          ':' + config.port + ';databaseName=' + config.dbName +
+          (config.instanceName ? ';instanceName=' + config.instanceName : '');
+        
+        return Jdbc.getConnection(jdbcUrl, config.user, config.password);
+      },
+  
+      _parseResultSet: function(resultSet) {
+        const metaData = resultSet.getMetaData();
+        const columnCount = metaData.getColumnCount();
+        const headers = [];
+        const data = [];
+  
+        // Obtener encabezados
+        for (let i = 1; i <= columnCount; i++) {
+          headers.push(metaData.getColumnName(i));
+        }
+        data.push(headers);
+  
+        // Obtener datos
+        while (resultSet.next()) {
+          const row = [];
+          for (let i = 1; i <= columnCount; i++) {
+            row.push(resultSet.getString(i));
+          }
+          data.push(row);
+        }
+        
+        return data;
+      },
+  
+      _writeData: function(data, spreadsheetId, sheetName) {
+        const spreadsheet = spreadsheetId ? 
+          SpreadsheetApp.openById(spreadsheetId) : 
+          SpreadsheetApp.getActiveSpreadsheet();
+        
+        let sheet = spreadsheet.getSheetByName(sheetName);
+        if (!sheet) {
+          sheet = spreadsheet.insertSheet(sheetName);
+        } else {
+          sheet.clear();
+        }
+        
+        sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+      }
+    };
+  })();
